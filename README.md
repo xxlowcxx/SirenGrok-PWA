@@ -1,16 +1,15 @@
 # MAKER — public install mirror
 
-**Use this repo to open the app in Safari.**  
-Source of truth (private): `xxlowcxx/SirenGrokBuilder`
+**The forge that builds the rest of Toolaid.**
 
-## Open on iPhone
+Private source: `xxlowcxx/SirenGrokBuilder`
+
+## Open on iPhone / desktop browser
 
 **https://raw.githack.com/xxlowcxx/SirenGrok-PWA/main/index.html**
 
-Or GitHub Pages if enabled: `https://xxlowcxx.github.io/SirenGrok-PWA/`
+1. Paste xAI API key (console.x.ai)
+2. Pick a **project preset** (Burn Box, Bubbles, Partitioner, HandOfGod, or All)
+3. Tell it what to build / fix / push next
 
-1. Safari → open the link  
-2. Share → Add to Home Screen  
-3. Gear → paste xAI API key from console.x.ai  
-
-Private repo links fail with “something went wrong” — this public mirror is the fix.
+MAKER is the chat + agent brain. Grok Build CLI (`grok` in Kitty) is the terminal hands on a repo. Use both: plan in MAKER, execute in the folder with `grok`.

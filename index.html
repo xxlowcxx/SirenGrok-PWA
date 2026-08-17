@@ -10,7 +10,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <title>MAKER // T00l-AID</title>
+  <title>MAKER // Build It All</title>
   <style>
     :root {
       --bg: #0a0a0a; --surface: #141414; --border: #2a2a2a; --text: #e8e8e8;
@@ -33,6 +33,17 @@
     header h1 span { color: var(--accent); }
     .header-actions { display: flex; gap: 4px; }
     button.icon { background: transparent; border: none; color: var(--muted); font-size: 18px; padding: 8px; cursor: pointer; }
+    #chips {
+      display: flex; gap: 8px; overflow-x: auto; padding: 8px 16px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .chip {
+      flex-shrink: 0; padding: 6px 12px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .chip.active { border-color: var(--accent); color: var(--accent); }
     #messages {
       flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px;
       -webkit-overflow-scrolling: touch;
@@ -83,7 +94,7 @@
       width: 100%; padding: 12px; background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; color: var(--text); font-size: 15px; font-family: inherit;
     }
-    .settings-panel textarea { min-height: 72px; }
+    .settings-panel textarea { min-height: 80px; }
     .settings-panel .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
     .settings-panel button.primary {
       width: 100%; padding: 14px; background: var(--accent); border: none; border-radius: 12px;
@@ -98,7 +109,7 @@
       color: var(--muted); text-align: center; padding: 40px 20px;
     }
     .empty h2 { color: var(--text); margin-bottom: 8px; font-size: 22px; }
-    .empty p { font-size: 15px; line-height: 1.5; max-width: 280px; }
+    .empty p { font-size: 15px; line-height: 1.5; max-width: 300px; }
   </style>
 </head>
 <body>
@@ -111,21 +122,29 @@
         <button class="icon" id="btn-settings" title="Settings">⚙️</button>
       </div>
     </header>
+    <div id="chips">
+      <button class="chip active" data-preset="all">All projects</button>
+      <button class="chip" data-preset="burnbox">Burn Box</button>
+      <button class="chip" data-preset="bubbles">Bubbles</button>
+      <button class="chip" data-preset="partition">Partitioner</button>
+      <button class="chip" data-preset="handofgod">HandOfGod</button>
+      <button class="chip" data-preset="cli">Grok CLI</button>
+    </div>
     <div id="messages">
       <div class="empty" id="empty-state">
-        <h2>MAKER ready</h2>
-        <p>Gear → paste xAI API key from console.x.ai → Save. Then send a message.</p>
+        <h2>Build it all</h2>
+        <p>MAKER is the forge. Pick a project chip, set your API key, then order the next build step.</p>
       </div>
     </div>
     <div id="input-area">
-      <textarea id="prompt" rows="1" placeholder="Make something..." enterkeyhint="send"></textarea>
+      <textarea id="prompt" rows="1" placeholder="What do we build next?" enterkeyhint="send"></textarea>
       <button id="send">↑</button>
     </div>
   </div>
   <div class="settings-panel" id="settings">
     <h2>MAKER Settings</h2>
-    <p class="sub">Key stays on this device only</p>
-    <label>xAI API Key (required)</label>
+    <p class="sub">Forge for Toolaid · key stays on device</p>
+    <label>xAI API Key</label>
     <input type="password" id="api-key" placeholder="xai-..." autocomplete="off">
     <label>Model</label>
     <select id="model">
@@ -134,8 +153,8 @@
       <option value="grok-4.3">grok-4.3</option>
       <option value="grok-4">grok-4</option>
     </select>
-    <label>System Prompt</label>
-    <textarea id="system"></textarea>
+    <label>Extra system notes (optional)</label>
+    <textarea id="system-extra" placeholder="Any standing orders for the forge..."></textarea>
     <div class="btn-row">
       <button class="primary" id="save-settings">Save &amp; Close</button>
       <button class="secondary" id="btn-test">Test API key</button>
@@ -148,28 +167,88 @@
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(function () {});
     }
+
+    var PRESETS = {
+      all: {
+        label: "All projects",
+        system:
+          "You are MAKER / Siren, LowC's forge partner in T00l-AID. Mission: design, sequence, and write the code/docs/commands to build the whole stack.\n" +
+          "Active portfolio:\n" +
+          "1) Burn Box (Stage 2 complete) — sanitized vault; Stage 3 optional.\n" +
+          "2) Bubbles / Android-as-Guest — shrink original OS into a controlled bubble; theory on GitHub SirenForge-Android-Guest.\n" +
+          "3) SirenForge partitioner — GPT plan/shrink when write access exists.\n" +
+          "4) HandOfGod — automation / keyboard agent tooling.\n" +
+          "5) MAKER itself — this PWA + later Flutter/tools.\n" +
+          "6) Grok Build CLI — terminal agent on the laptop (command: grok).\n" +
+          "Rules: Be concrete. Prefer file paths, shell commands, GitHub pushes, phased checklists. No fake claims of scanning the user's laptop. When code is needed, output complete copy-pasteable files. LowC is in Toronto/GTA; SuperGrok user. Build it all — one clear next step at a time unless asked for a full plan."
+      },
+      burnbox: {
+        label: "Burn Box",
+        system:
+          "You are MAKER focused on Burn Box (xxlowcxx/burn-box-stage-1). Stage 2 is complete: quarantine	o scan	o burn original	o safe store, multi-platform shells, convert, large-file policy. Help with Stage 3: unify routes-core, CDR, resumable uploads, performance. Give exact file paths under server/ client/ shared/."
+      },
+      bubbles: {
+        label: "Bubbles",
+        system:
+          "You are MAKER focused on Bubbles + Android-as-Guest (xxlowcxx/SirenForge-Android-Guest). Goal: capture OS image, shrink, place in virtual bubble, free space is playground; original intact. Prefer Gunyah/AVF research paths over cracking. Produce roadmap steps, capture scripts outlines, host design — no unauthorized device attacks."
+      },
+      partition: {
+        label: "Partitioner",
+        system:
+          "You are MAKER focused on SirenForge GPT/partition tooling. Plan partitions like GParted when write access exists; never claim full GPT rewrite on locked modern Samsung without a real programmer/foothold. Output parsers, planners, safety CRC notes, CLI designs."
+      },
+      handofgod: {
+        label: "HandOfGod",
+        system:
+          "You are MAKER focused on HandOfGod / automation agents (keyboard, scripts, supervised AI control). Emphasize user-owned devices, explicit supervision, no unsupervised abuse. Deliver script structure, safety rails, and integration with MAKER."
+      },
+      cli: {
+        label: "Grok CLI",
+        system:
+          "You are MAKER coaching use of xAI Grok Build CLI in Kitty/terminal. Commands: curl install, PATH ~/.grok/bin, grok, grok -p, grok login, XAI_API_KEY. Help debug path issues and pair CLI hands with MAKER brain."
+      }
+    };
+
     var messagesEl = document.getElementById("messages");
     var promptEl = document.getElementById("prompt");
     var sendBtn = document.getElementById("send");
     var emptyState = document.getElementById("empty-state");
     var settingsPanel = document.getElementById("settings");
-    var history = JSON.parse(localStorage.getItem("maker_history") || localStorage.getItem("siren_history") || "[]");
+    var history = JSON.parse(localStorage.getItem("maker_history") || "[]");
     var isStreaming = false;
-    var DEFAULT_SYSTEM = "You are Siren / MAKER, LowC's private build partner. Direct, loyal, frontier-focused. Help ship tools, code, and agents. No fluff.";
+    var activePreset = localStorage.getItem("maker_preset") || "all";
 
     function loadSettings() {
       document.getElementById("api-key").value = localStorage.getItem("xai_key") || "";
       var m = localStorage.getItem("xai_model") || "grok-4.6";
-      if (m === "grok-4-1-fast-reasoning") m = "grok-4.6";
       document.getElementById("model").value = m;
-      document.getElementById("system").value = localStorage.getItem("xai_system") || DEFAULT_SYSTEM;
+      document.getElementById("system-extra").value = localStorage.getItem("maker_extra") || "";
     }
     loadSettings();
+
+    function setPreset(id) {
+      activePreset = id;
+      localStorage.setItem("maker_preset", id);
+      document.querySelectorAll(".chip").forEach(function (c) {
+        c.classList.toggle("active", c.getAttribute("data-preset") === id);
+      });
+    }
+    document.querySelectorAll(".chip").forEach(function (c) {
+      c.onclick = function () { setPreset(c.getAttribute("data-preset")); };
+    });
+    setPreset(activePreset);
+
+    function buildSystem() {
+      var base = (PRESETS[activePreset] || PRESETS.all).system;
+      var extra = localStorage.getItem("maker_extra") || "";
+      if (extra.trim()) base += "\n\nStanding orders from LowC:\n" + extra.trim();
+      return base;
+    }
 
     function saveSettings() {
       localStorage.setItem("xai_key", document.getElementById("api-key").value.trim());
       localStorage.setItem("xai_model", document.getElementById("model").value);
-      localStorage.setItem("xai_system", document.getElementById("system").value.trim());
+      localStorage.setItem("maker_extra", document.getElementById("system-extra").value);
       settingsPanel.classList.remove("open");
     }
     document.getElementById("btn-settings").onclick = function () { settingsPanel.classList.add("open"); };
@@ -180,12 +259,10 @@
       var key = document.getElementById("api-key").value.trim();
       if (!key) { alert("Paste an API key first."); return; }
       try {
-        var res = await fetch("https://api.x.ai/v1/models", {
-          headers: { Authorization: "Bearer " + key }
-        });
+        var res = await fetch("https://api.x.ai/v1/models", { headers: { Authorization: "Bearer " + key } });
         var body = await res.text();
         if (!res.ok) throw new Error(res.status + " " + body.slice(0, 200));
-        alert("API key works. Models endpoint OK.");
+        alert("API key works.");
         localStorage.setItem("xai_key", key);
       } catch (e) {
         alert("Key test failed: " + e.message);
@@ -196,7 +273,6 @@
       if (confirm("Wipe chat history?")) {
         history = [];
         localStorage.removeItem("maker_history");
-        localStorage.removeItem("siren_history");
         messagesEl.innerHTML = "";
         messagesEl.appendChild(emptyState);
         emptyState.style.display = "flex";
@@ -204,12 +280,11 @@
     };
 
     document.getElementById("btn-export").onclick = function () {
-      var blob = new Blob([JSON.stringify({ app: "MAKER", exportedAt: new Date().toISOString(), history: history }, null, 2)], { type: "application/json" });
+      var blob = new Blob([JSON.stringify({ app: "MAKER", preset: activePreset, history: history }, null, 2)], { type: "application/json" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "maker-chat-" + Date.now() + ".json";
       a.click();
-      URL.revokeObjectURL(a.href);
     };
 
     document.getElementById("btn-import").onclick = function () { document.getElementById("import-file").click(); };
@@ -225,21 +300,15 @@
           history = list;
           localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
           messagesEl.innerHTML = "";
-          if (history.length === 0) {
-            messagesEl.appendChild(emptyState);
-            emptyState.style.display = "flex";
-          } else {
-            emptyState.style.display = "none";
-            renderHistory();
-          }
+          emptyState.style.display = history.length ? "none" : "flex";
+          if (history.length) renderHistory();
+          else messagesEl.appendChild(emptyState);
           settingsPanel.classList.remove("open");
-          alert("Imported " + history.length + " messages.");
         } catch (err) {
           alert("Import failed: " + err.message);
         }
       };
       reader.readAsText(file);
-      e.target.value = "";
     };
 
     promptEl.addEventListener("input", function () {
@@ -254,7 +323,7 @@
     }
 
     function renderHistory() {
-      if (history.length === 0) return;
+      if (!history.length) return;
       emptyState.style.display = "none";
       history.forEach(function (m) {
         var div = document.createElement("div");
@@ -267,17 +336,12 @@
     }
     renderHistory();
 
-    function showAiError(aiDiv, msg) {
-      aiDiv.innerHTML = '<div class="label">MAKER</div><span class="err">' + escapeHtml(msg) + "</span>";
-    }
-
     async function send() {
       var text = promptEl.value.trim();
       if (!text || isStreaming) return;
-
       var key = localStorage.getItem("xai_key");
       if (!key) {
-        alert("Put your xAI API key in Settings first (from console.x.ai).");
+        alert("API key required — Settings.");
         settingsPanel.classList.add("open");
         return;
       }
@@ -290,13 +354,12 @@
       userDiv.className = "msg user";
       userDiv.textContent = text;
       messagesEl.appendChild(userDiv);
-
       history.push({ role: "user", content: text });
       localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
 
       var aiDiv = document.createElement("div");
       aiDiv.className = "msg ai";
-      aiDiv.innerHTML = '<div class="label">MAKER</div><div class="typing"><span></span><span></span><span></span></div>';
+      aiDiv.innerHTML = '<div class="label">MAKER · ' + (PRESETS[activePreset] || PRESETS.all).label + '</div><div class="typing"><span></span><span></span><span></span></div>';
       messagesEl.appendChild(aiDiv);
       messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -304,37 +367,24 @@
       sendBtn.disabled = true;
 
       var model = localStorage.getItem("xai_model") || "grok-4.6";
-      if (model === "grok-4-1-fast-reasoning") model = "grok-4.6";
-      var system = localStorage.getItem("xai_system") || DEFAULT_SYSTEM;
-
-      var messages = [];
-      if (system) messages.push({ role: "system", content: system });
+      var messages = [{ role: "system", content: buildSystem() }];
       history.slice(-12).forEach(function (m) {
         messages.push({ role: m.role === "ai" ? "assistant" : "user", content: m.content });
       });
-
-      var payload = { model: model, messages: messages, temperature: 0.85 };
+      var payload = { model: model, messages: messages, temperature: 0.7 };
 
       try {
-        // Try streaming first
         var res = await fetch("https://api.x.ai/v1/chat/completions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + key
-          },
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
           body: JSON.stringify(Object.assign({}, payload, { stream: true }))
         });
 
         if (!res.ok) {
           var errText = await res.text();
-          // Non-stream fallback on model/stream errors
           var res2 = await fetch("https://api.x.ai/v1/chat/completions", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: "Bearer " + key
-            },
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
             body: JSON.stringify(Object.assign({}, payload, { stream: false }))
           });
           if (!res2.ok) {
@@ -342,15 +392,11 @@
             throw new Error("HTTP " + res2.status + ": " + (err2 || errText).slice(0, 400));
           }
           var data = await res2.json();
-          var full = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "(empty reply)";
+          var full = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "(empty)";
           aiDiv.innerHTML = '<div class="label">MAKER</div>' + escapeHtml(full);
           history.push({ role: "ai", content: full });
           localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
           return;
-        }
-
-        if (!res.body) {
-          throw new Error("No response body (stream unsupported in this browser)");
         }
 
         var reader = res.body.getReader();
@@ -358,7 +404,6 @@
         var full = "";
         var buffer = "";
         aiDiv.innerHTML = '<div class="label">MAKER</div>';
-
         while (true) {
           var step = await reader.read();
           if (step.done) break;
@@ -381,15 +426,14 @@
             } catch (ignore) {}
           }
         }
-
         if (!full) {
-          showAiError(aiDiv, "Empty stream. Try Test API key in Settings, or switch model to grok-4.6.");
+          aiDiv.innerHTML = '<div class="label">MAKER</div><span class="err">Empty reply. Test API key / try grok-4.6.</span>';
         } else {
           history.push({ role: "ai", content: full });
           localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
         }
       } catch (e) {
-        showAiError(aiDiv, "Error: " + e.message + "\n\nCheck: 1) API key in Settings 2) Credits on console.x.ai 3) Model = grok-4.6");
+        aiDiv.innerHTML = '<div class="label">MAKER</div><span class="err">Error: ' + escapeHtml(e.message) + "</span>";
       } finally {
         isStreaming = false;
         sendBtn.disabled = false;
