@@ -44,6 +44,7 @@
     .msg.user { align-self: flex-end; background: var(--user-bg); border: 1px solid var(--border); border-bottom-right-radius: 4px; }
     .msg.ai { align-self: flex-start; background: var(--ai-bg); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
     .msg.ai .label { font-size: 11px; color: var(--accent); margin-bottom: 4px; font-weight: 600; letter-spacing: 0.5px; }
+    .msg.ai .err { color: #ff6b6b; }
     .typing { display: flex; gap: 4px; padding: 8px 0; }
     .typing span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: bounce 1.2s infinite; }
     .typing span:nth-child(2) { animation-delay: 0.15s; }
@@ -113,7 +114,7 @@
     <div id="messages">
       <div class="empty" id="empty-state">
         <h2>MAKER ready</h2>
-        <p>Private Grok forge. Paste your xAI key in settings, then build.</p>
+        <p>Gear → paste xAI API key from console.x.ai → Save. Then send a message.</p>
       </div>
     </div>
     <div id="input-area">
@@ -123,19 +124,21 @@
   </div>
   <div class="settings-panel" id="settings">
     <h2>MAKER Settings</h2>
-    <p class="sub">Stage 1 · keys stay on this device</p>
-    <label>xAI API Key</label>
+    <p class="sub">Key stays on this device only</p>
+    <label>xAI API Key (required)</label>
     <input type="password" id="api-key" placeholder="xai-..." autocomplete="off">
     <label>Model</label>
     <select id="model">
-      <option value="grok-4.5">grok-4.5 (flagship)</option>
+      <option value="grok-4.6">grok-4.6 (flagship)</option>
+      <option value="grok-4.5">grok-4.5</option>
       <option value="grok-4.3">grok-4.3</option>
-      <option value="grok-4-1-fast-reasoning">grok-4-1-fast-reasoning</option>
+      <option value="grok-4">grok-4</option>
     </select>
     <label>System Prompt</label>
     <textarea id="system"></textarea>
     <div class="btn-row">
       <button class="primary" id="save-settings">Save &amp; Close</button>
+      <button class="secondary" id="btn-test">Test API key</button>
       <button class="secondary" id="btn-import">Import chat JSON</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
       <button class="secondary" id="btn-close-settings">Cancel</button>
@@ -153,9 +156,16 @@
     var history = JSON.parse(localStorage.getItem("maker_history") || localStorage.getItem("siren_history") || "[]");
     var isStreaming = false;
     var DEFAULT_SYSTEM = "You are Siren / MAKER, LowC's private build partner. Direct, loyal, frontier-focused. Help ship tools, code, and agents. No fluff.";
-    document.getElementById("api-key").value = localStorage.getItem("xai_key") || "";
-    document.getElementById("model").value = localStorage.getItem("xai_model") || "grok-4.5";
-    document.getElementById("system").value = localStorage.getItem("xai_system") || DEFAULT_SYSTEM;
+
+    function loadSettings() {
+      document.getElementById("api-key").value = localStorage.getItem("xai_key") || "";
+      var m = localStorage.getItem("xai_model") || "grok-4.6";
+      if (m === "grok-4-1-fast-reasoning") m = "grok-4.6";
+      document.getElementById("model").value = m;
+      document.getElementById("system").value = localStorage.getItem("xai_system") || DEFAULT_SYSTEM;
+    }
+    loadSettings();
+
     function saveSettings() {
       localStorage.setItem("xai_key", document.getElementById("api-key").value.trim());
       localStorage.setItem("xai_model", document.getElementById("model").value);
@@ -165,6 +175,23 @@
     document.getElementById("btn-settings").onclick = function () { settingsPanel.classList.add("open"); };
     document.getElementById("save-settings").onclick = saveSettings;
     document.getElementById("btn-close-settings").onclick = function () { settingsPanel.classList.remove("open"); };
+
+    document.getElementById("btn-test").onclick = async function () {
+      var key = document.getElementById("api-key").value.trim();
+      if (!key) { alert("Paste an API key first."); return; }
+      try {
+        var res = await fetch("https://api.x.ai/v1/models", {
+          headers: { Authorization: "Bearer " + key }
+        });
+        var body = await res.text();
+        if (!res.ok) throw new Error(res.status + " " + body.slice(0, 200));
+        alert("API key works. Models endpoint OK.");
+        localStorage.setItem("xai_key", key);
+      } catch (e) {
+        alert("Key test failed: " + e.message);
+      }
+    };
+
     document.getElementById("btn-clear").onclick = function () {
       if (confirm("Wipe chat history?")) {
         history = [];
@@ -175,6 +202,7 @@
         emptyState.style.display = "flex";
       }
     };
+
     document.getElementById("btn-export").onclick = function () {
       var blob = new Blob([JSON.stringify({ app: "MAKER", exportedAt: new Date().toISOString(), history: history }, null, 2)], { type: "application/json" });
       var a = document.createElement("a");
@@ -183,6 +211,7 @@
       a.click();
       URL.revokeObjectURL(a.href);
     };
+
     document.getElementById("btn-import").onclick = function () { document.getElementById("import-file").click(); };
     document.getElementById("import-file").onchange = function (e) {
       var file = e.target.files && e.target.files[0];
@@ -212,15 +241,18 @@
       reader.readAsText(file);
       e.target.value = "";
     };
+
     promptEl.addEventListener("input", function () {
       promptEl.style.height = "auto";
       promptEl.style.height = Math.min(promptEl.scrollHeight, 120) + "px";
     });
+
     function escapeHtml(text) {
       var div = document.createElement("div");
       div.textContent = text;
       return div.innerHTML;
     }
+
     function renderHistory() {
       if (history.length === 0) return;
       emptyState.style.display = "none";
@@ -234,83 +266,136 @@
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
     renderHistory();
+
+    function showAiError(aiDiv, msg) {
+      aiDiv.innerHTML = '<div class="label">MAKER</div><span class="err">' + escapeHtml(msg) + "</span>";
+    }
+
     async function send() {
       var text = promptEl.value.trim();
       if (!text || isStreaming) return;
+
       var key = localStorage.getItem("xai_key");
       if (!key) {
-        alert("Put your xAI API key in Settings first.");
+        alert("Put your xAI API key in Settings first (from console.x.ai).");
         settingsPanel.classList.add("open");
         return;
       }
+
       emptyState.style.display = "none";
       promptEl.value = "";
       promptEl.style.height = "auto";
+
       var userDiv = document.createElement("div");
       userDiv.className = "msg user";
       userDiv.textContent = text;
       messagesEl.appendChild(userDiv);
+
       history.push({ role: "user", content: text });
       localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
+
       var aiDiv = document.createElement("div");
       aiDiv.className = "msg ai";
       aiDiv.innerHTML = '<div class="label">MAKER</div><div class="typing"><span></span><span></span><span></span></div>';
       messagesEl.appendChild(aiDiv);
       messagesEl.scrollTop = messagesEl.scrollHeight;
+
       isStreaming = true;
       sendBtn.disabled = true;
-      var model = localStorage.getItem("xai_model") || "grok-4.5";
+
+      var model = localStorage.getItem("xai_model") || "grok-4.6";
+      if (model === "grok-4-1-fast-reasoning") model = "grok-4.6";
       var system = localStorage.getItem("xai_system") || DEFAULT_SYSTEM;
+
       var messages = [];
       if (system) messages.push({ role: "system", content: system });
       history.slice(-12).forEach(function (m) {
         messages.push({ role: m.role === "ai" ? "assistant" : "user", content: m.content });
       });
+
+      var payload = { model: model, messages: messages, temperature: 0.85 };
+
       try {
+        // Try streaming first
         var res = await fetch("https://api.x.ai/v1/chat/completions", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: "Bearer " + key },
-          body: JSON.stringify({ model: model, messages: messages, stream: true, temperature: 0.85 }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + key
+          },
+          body: JSON.stringify(Object.assign({}, payload, { stream: true }))
         });
+
         if (!res.ok) {
-          var err = await res.text();
-          throw new Error(err || res.statusText);
+          var errText = await res.text();
+          // Non-stream fallback on model/stream errors
+          var res2 = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + key
+            },
+            body: JSON.stringify(Object.assign({}, payload, { stream: false }))
+          });
+          if (!res2.ok) {
+            var err2 = await res2.text();
+            throw new Error("HTTP " + res2.status + ": " + (err2 || errText).slice(0, 400));
+          }
+          var data = await res2.json();
+          var full = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "(empty reply)";
+          aiDiv.innerHTML = '<div class="label">MAKER</div>' + escapeHtml(full);
+          history.push({ role: "ai", content: full });
+          localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
+          return;
         }
+
+        if (!res.body) {
+          throw new Error("No response body (stream unsupported in this browser)");
+        }
+
         var reader = res.body.getReader();
         var decoder = new TextDecoder();
         var full = "";
+        var buffer = "";
         aiDiv.innerHTML = '<div class="label">MAKER</div>';
+
         while (true) {
           var step = await reader.read();
           if (step.done) break;
-          var chunk = decoder.decode(step.value);
-          var lines = chunk.split("\n");
+          buffer += decoder.decode(step.value, { stream: true });
+          var lines = buffer.split("\n");
+          buffer = lines.pop() || "";
           for (var i = 0; i < lines.length; i++) {
-            var line = lines[i];
-            if (line.indexOf("data: ") === 0) {
-              var data = line.slice(6);
-              if (data === "[DONE]") continue;
-              try {
-                var json = JSON.parse(data);
-                var delta = (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) || "";
-                if (delta) {
-                  full += delta;
-                  aiDiv.innerHTML = '<div class="label">MAKER</div>' + escapeHtml(full);
-                  messagesEl.scrollTop = messagesEl.scrollHeight;
-                }
-              } catch (ignore) {}
-            }
+            var line = lines[i].trim();
+            if (line.indexOf("data: ") !== 0) continue;
+            var dataStr = line.slice(6);
+            if (dataStr === "[DONE]") continue;
+            try {
+              var json = JSON.parse(dataStr);
+              var delta = (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) || "";
+              if (delta) {
+                full += delta;
+                aiDiv.innerHTML = '<div class="label">MAKER</div>' + escapeHtml(full);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+            } catch (ignore) {}
           }
         }
-        history.push({ role: "ai", content: full });
-        localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
+
+        if (!full) {
+          showAiError(aiDiv, "Empty stream. Try Test API key in Settings, or switch model to grok-4.6.");
+        } else {
+          history.push({ role: "ai", content: full });
+          localStorage.setItem("maker_history", JSON.stringify(history.slice(-40)));
+        }
       } catch (e) {
-        aiDiv.innerHTML = '<div class="label">MAKER</div>Error: ' + escapeHtml(e.message);
+        showAiError(aiDiv, "Error: " + e.message + "\n\nCheck: 1) API key in Settings 2) Credits on console.x.ai 3) Model = grok-4.6");
       } finally {
         isStreaming = false;
         sendBtn.disabled = false;
       }
     }
+
     sendBtn.onclick = send;
     promptEl.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
