@@ -1,15 +1,25 @@
-# MAKER — public install mirror
+# SirenGrok PWA
 
-**The forge that builds the rest of Toolaid.**
+Public install mirror of the PWA. The private forge, including the Flutter shell, is `SirenGrokBuilder`.
 
-Private source: `xxlowcxx/SirenGrokBuilder`
+| | |
+| --- | --- |
+| What it is | The browser install of MAKER, the chat and agent brain. |
+| What it is not | The whole forge. Grok Build in the terminal is the hands on a repo. This page is the mirror. |
+| Status | Public so a phone can open it. The source of truth is the private builder. |
+| Also called | MAKER. SirenGrok-PWA. |
+| Owner | LowC. Toolaid. |
 
-## Open on iPhone / desktop browser
+## Mission
 
-**https://raw.githack.com/xxlowcxx/SirenGrok-PWA/main/index.html**
+Repush the PWA from the builder when the forge moves. Do not let this mirror drift into a second product.
 
-1. Paste xAI API key (console.x.ai)
-2. Pick a **project preset** (Burn Box, Bubbles, Partitioner, HandOfGod, or All)
-3. Tell it what to build / fix / push next
+## Open
 
-MAKER is the chat + agent brain. Grok Build CLI (`grok` in Kitty) is the terminal hands on a repo. Use both: plan in MAKER, execute in the folder with `grok`.
+https://raw.githack.com/xxlowcxx/SirenGrok-PWA/main/index.html
+
+1. Paste an xAI API key from console.x.ai. It stays in the browser.
+2. Pick a project preset.
+3. Say what to build, fix, or push next.
+
+Plan here. Execute in the repo with `grok`.
